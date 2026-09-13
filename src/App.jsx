@@ -225,7 +225,7 @@ export default function App() {
         <img 
           src="https://rdwxhhxfcqcnekstyjws.supabase.co/storage/v1/object/public/fotos-mantenimiento/WhatsApp%20Image%202026-07-28%20at%207.13.06%20PM.jpeg" 
           alt="Logo" 
-          className="w-13 h-13 object-contain rounded-lg bg-white/10 p-1"
+          className="w-12 h-12 object-contain rounded-lg bg-white/10 p-1"
         />
         <div className="flex-1">
           <div className="text-white font-semibold leading-tight">MANTENIMIENTO DEL VALLE</div>
