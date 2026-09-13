@@ -229,7 +229,7 @@ export default function App() {
         />
         <div className="flex-1">
           <div className="text-white font-semibold leading-tight">MANTENIMIENTO DEL VALLE</div>
-          <div className="text-slate-400 text-xs">Servicio de aire acondicionado</div>
+          <div className="text-slate-400 text-xs">Servicio de Electricidad y Refrigeracion</div>
         </div>
         <button onClick={() => supabase.auth.signOut()} className="text-slate-400 hover:text-white p-2" title="Cerrar sesión">
           <LogOut size={16} />
