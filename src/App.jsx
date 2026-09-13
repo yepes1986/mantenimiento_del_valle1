@@ -222,12 +222,14 @@ export default function App() {
   return (
     <div className="min-h-[600px] bg-slate-50 text-slate-900 rounded-xl overflow-hidden border border-slate-200">
       <div className="bg-slate-900 px-5 py-4 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-          <Wind className="text-cyan-400" size={20} />
-        </div>
+        <img 
+          src="https://rdwxhhxfcqcnekstyjws.supabase.co/storage/v1/object/public/fotos-mantenimiento/WhatsApp%20Image%202026-07-28%20at%207.13.06%20PM.jpeg" 
+          alt="Logo" 
+          className="w-10 h-10 object-contain rounded-lg bg-white/10 p-1"
+        />
         <div className="flex-1">
-          <div className="text-white font-semibold leading-tight">Frío &amp; Gestión</div>
-          <div className="text-slate-400 text-xs">Instalación y mantenimiento de aires acondicionados</div>
+          <div className="text-white font-semibold leading-tight">MANTENIMIENTO DEL VALLE</div>
+          <div className="text-slate-400 text-xs">Servicio de aire acondicionado</div>
         </div>
         <button onClick={() => supabase.auth.signOut()} className="text-slate-400 hover:text-white p-2" title="Cerrar sesión">
           <LogOut size={16} />
