@@ -29,11 +29,13 @@ export default function Auth() {
   return (
     <div className="min-h-[600px] flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200">
       <div className="w-full max-w-sm p-6">
-        <div className="flex items-center gap-2 justify-center mb-6">
-          <div className="w-9 h-9 rounded-lg bg-cyan-600/10 flex items-center justify-center">
-            <Wind className="text-cyan-600" size={20} />
-          </div>
-          <span className="font-semibold text-slate-900">Frío &amp; Gestión</span>
+        <div className="flex flex-col items-center gap-3 mb-6">
+          <img 
+            src="https://rdwxhhxfcqcnekstyjws.supabase.co/storage/v1/object/public/fotos-mantenimiento/WhatsApp%20Image%202026-07-28%20at%207.13.06%20PM.jpeg" 
+            alt="Logo" 
+            className="w-16 h-16 object-contain"
+          />
+          <span className="font-semibold text-slate-900 text-lg">MANTENIMIENTO DEL VALLE</span>
         </div>
 
         <form onSubmit={submit} className="bg-white rounded-lg border border-slate-200 p-5">
