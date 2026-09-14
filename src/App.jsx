@@ -182,7 +182,7 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     (async () => {
-      const [inst, mats, acc, lg, comp] = await Promise.all([
+      const [inst, mats, acc, lg, comp, qts] = await Promise.all([
         fetchAll("installations"),
         fetchAll("materials"),
         fetchAll("accounting"),
