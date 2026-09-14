@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // ---------------------------------------------------------------------------
 // Utilidades
@@ -1140,7 +1142,7 @@ function QuotesTab({ quotes, setQuotes, installations }) {
   }
 
   const downloadPDF = (quote) => {
-    const { jsPDF } = window.jspdf;
+    
     const doc = new jsPDF();
     const totals = computeTotals(quote);
     
@@ -1319,15 +1321,39 @@ function QuotesTab({ quotes, setQuotes, installations }) {
             <Btn size="sm" tone="ghost" onClick={addItem}><Plus size={13} /> Agregar ítem</Btn>
           </div>
 
-          <div className="space-y-2 mb-4">
+          <div className="space-y-3 mb-4">
             {form.items.map((it, idx) => (
-              <div key={idx} className="flex gap-2 items-start bg-slate-50 p-2 rounded">
-                <span className="text-xs text-slate-400 pt-2 w-6">{idx + 1}</span>
-                <input className={inputCls + " flex-1"} placeholder="Descripción" value={it.description} onChange={(e) => updateItem(idx, { description: e.target.value })} />
-                <input type="number" min="0" className={inputCls + " w-16"} placeholder="Cant." value={it.qty} onChange={(e) => updateItem(idx, { qty: e.target.value })} />
-                <input className={inputCls + " w-16"} placeholder="Und" value={it.unit} onChange={(e) => updateItem(idx, { unit: e.target.value })} />
-                <input type="number" min="0" className={inputCls + " w-24"} placeholder="V. Unit" value={it.unit_price} onChange={(e) => updateItem(idx, { unit_price: e.target.value })} />
-                <button onClick={() => removeItem(idx)} className="text-slate-400 hover:text-rose-500 pt-2 shrink-0"><X size={16} /></button>
+              <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="text-xs font-medium text-slate-400 pt-2 w-6 shrink-0">#{idx + 1}</span>
+                  <textarea
+                    className={inputCls + " flex-1 resize-none"}
+                    rows={2}
+                    placeholder="Descripción del producto o servicio (ej: Tuberia de cobre de 1/4...)"
+                    value={it.description}
+                    onChange={(e) => updateItem(idx, { description: e.target.value })}
+                  />
+                  <button onClick={() => removeItem(idx)} className="text-slate-400 hover:text-rose-500 pt-2 shrink-0">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 ml-8">
+                  <label className="block">
+                    <span className="block text-xs text-slate-400 mb-1">Cantidad</span>
+                    <input type="number" min="0" className={inputCls} value={it.qty} onChange={(e) => updateItem(idx, { qty: e.target.value })} />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs text-slate-400 mb-1">Unidad</span>
+                    <input className={inputCls} placeholder="UND" value={it.unit} onChange={(e) => updateItem(idx, { unit: e.target.value })} />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs text-slate-400 mb-1">Valor unitario</span>
+                    <input type="number" min="0" className={inputCls} placeholder="0" value={it.unit_price} onChange={(e) => updateItem(idx, { unit_price: e.target.value })} />
+                  </label>
+                </div>
+                <div className="text-right text-xs text-slate-500 mt-2 ml-8">
+                  Total: <span className="font-semibold text-slate-700">{money((Number(it.qty) || 0) * (Number(it.unit_price) || 0))}</span>
+                </div>
               </div>
             ))}
           </div>
