@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Wind, LayoutGrid, Users, AlertTriangle, Wallet, Package, CalendarClock,
   Plus, Search, Trash2, Pencil, X, CheckCircle2, Phone, MapPin,
-  ArrowLeft, TriangleAlert, PackageX, ReceiptText, Wrench, LogOut, Image,
+  ArrowLeft, TriangleAlert, PackageX, ReceiptText, Wrench, LogOut, Image, 
+  FileText, Download,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
@@ -153,6 +154,7 @@ function Btn({ children, onClick, tone = "primary", type = "button", size = "md"
 const TABS = [
   { id: "dashboard", label: "Panel", icon: LayoutGrid },
   { id: "installations", label: "Instalaciones", icon: Users },
+  { id: "quotes", label: "Cotizaciones", icon: FileText },
   { id: "accounting", label: "Contabilidad", icon: Wallet },
   { id: "logs", label: "Logs de manejadoras", icon: AlertTriangle },
   { id: "materials", label: "Materiales", icon: Package },
@@ -169,6 +171,7 @@ export default function App() {
   const [accounting, setAccounting] = useState([]);
   const [logs, setLogs] = useState([]);
   const [completions, setCompletions] = useState([]);
+  const [quotes, setQuotes] = useState([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -185,12 +188,14 @@ export default function App() {
         fetchAll("accounting"),
         fetchAll("logs"),
         fetchAll("maintenance_completions"),
+        fetchAll("quotes"),
       ]);
       setInstallations(inst);
       setMaterials(mats);
       setAccounting(acc);
       setLogs(lg);
       setCompletions(comp);
+      setQuotes(qts);
       setReady(true);
     })();
   }, [session]);
@@ -260,6 +265,9 @@ export default function App() {
           <InstallationsTab installations={installations} setInstallations={setInstallations}
             accounting={accounting} setAccounting={setAccounting} logs={logs} setLogs={setLogs}
             completions={completions} setCompletions={setCompletions} />
+        )}
+        {tab === "quotes" && (
+          <QuotesTab quotes={quotes} setQuotes={setQuotes} installations={installations} />
         )}
         {tab === "accounting" && (
           <AccountingTab installations={installations} accounting={accounting} setAccounting={setAccounting}
@@ -1049,6 +1057,300 @@ function MaintenanceTab({ installations, completions, setCompletions }) {
             <Btn onClick={guardarCompletado} disabled={subiendo}>
               {subiendo ? 'Subiendo foto...' : 'Guardar y Completar'}
             </Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Cotizaciones
+// ---------------------------------------------------------------------------
+
+function QuotesTab({ quotes, setQuotes, installations }) {
+  const [form, setForm] = useState(null);
+  const [preview, setPreview] = useState(null);
+
+  const emptyQuote = () => {
+    const nextNumber = quotes.length > 0 
+      ? Math.max(...quotes.map(q => Number(q.quote_number) || 0)) + 1 
+      : 1;
+    return {
+      id: null,
+      quote_number: nextNumber,
+      date: todayISO(),
+      client_nit: "",
+      client_name: "",
+      client_contact: "",
+      client_phone: "",
+      client_address: "",
+      client_email: "",
+      city: "",
+      payment_terms: "a convenir",
+      discount_percent: 0,
+      tax_percent: 19,
+      items: [{ description: "", qty: 1, unit: "UND", unit_price: 0 }],
+      notes: "",
+    };
+  };
+
+  const computeTotals = (q) => {
+    const items = q.items || [];
+    const subtotal = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.unit_price) || 0), 0);
+    const tax_amount = subtotal * (Number(q.tax_percent) || 0) / 100;
+    const discount_amount = subtotal * (Number(q.discount_percent) || 0) / 100;
+    const total = subtotal + tax_amount - discount_amount;
+    return { subtotal, tax_amount, discount_amount, total };
+  };
+
+  function addItem() {
+    setForm({ ...form, items: [...form.items, { description: "", qty: 1, unit: "UND", unit_price: 0 }] });
+  }
+  function updateItem(idx, patch) {
+    setForm({ ...form, items: form.items.map((it, i) => (i === idx ? { ...it, ...patch } : it)) });
+  }
+  function removeItem(idx) {
+    setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
+  }
+
+  async function save() {
+    if (!form.client_name.trim()) {
+      alert("El nombre del cliente es obligatorio");
+      return;
+    }
+    const totals = computeTotals(form);
+    const { id, ...payload } = { ...form, ...totals };
+
+    if (id) {
+      const { data, error } = await supabase.from("quotes").update(payload).eq("id", id).select().single();
+      if (!error) setQuotes(quotes.map(q => q.id === id ? data : q));
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.from("quotes").insert({ ...payload, owner_id: user.id }).select().single();
+      if (!error) setQuotes([data, ...quotes]);
+    }
+    setForm(null);
+  }
+
+  async function remove(id) {
+    if (!confirm("¿Eliminar esta cotización?")) return;
+    await supabase.from("quotes").delete().eq("id", id);
+    setQuotes(quotes.filter(q => q.id !== id));
+  }
+
+  const downloadPDF = (quote) => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const totals = computeTotals(quote);
+    
+    // Encabezado
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 210, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text("MANTENIMIENTO DEL VALLE", 14, 12);
+    doc.setFontSize(9);
+    doc.text("Servicio de Electricidad y Refrigeración", 14, 18);
+    doc.setTextColor(0, 0, 0);
+    
+    // Título
+    doc.setFontSize(14);
+    doc.text("COTIZACIÓN", 160, 35);
+    doc.setFontSize(10);
+    doc.text(`N° ${quote.quote_number}`, 160, 41);
+    doc.text(`Fecha: ${fmtDate(quote.date)}`, 160, 47);
+    
+    // Datos del cliente
+    doc.setFontSize(10);
+    doc.text(`Cliente: ${quote.client_name || ""}`, 14, 40);
+    if (quote.client_nit) doc.text(`NIT: ${quote.client_nit}`, 14, 46);
+    if (quote.client_contact) doc.text(`Contacto: ${quote.client_contact}`, 14, 52);
+    if (quote.client_phone) doc.text(`Tel: ${quote.client_phone}`, 14, 58);
+    if (quote.client_address) doc.text(`Dirección: ${quote.client_address}`, 14, 64);
+    if (quote.client_email) doc.text(`Email: ${quote.client_email}`, 14, 70);
+    if (quote.city) doc.text(`Ciudad: ${quote.city}`, 14, 76);
+    if (quote.payment_terms) doc.text(`Forma de pago: ${quote.payment_terms}`, 14, 82);
+
+    // Tabla de items
+    const rows = (quote.items || []).filter(it => it.description).map((it, i) => [
+      i + 1,
+      it.description,
+      it.qty,
+      it.unit,
+      money(it.unit_price),
+      money((Number(it.qty) || 0) * (Number(it.unit_price) || 0))
+    ]);
+
+    doc.autoTable({
+      startY: 90,
+      head: [["#", "Descripción", "Cant.", "Unidad", "V. Unitario", "V. Total"]],
+      body: rows,
+      theme: "striped",
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 2 },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        2: { cellWidth: 15, halign: 'center' },
+        3: { cellWidth: 18, halign: 'center' },
+        4: { cellWidth: 28, halign: 'right' },
+        5: { cellWidth: 30, halign: 'right' },
+      }
+    });
+
+    // Totales
+    let finalY = doc.lastAutoTable.finalY + 10;
+    const totalsData = [
+      ["SUBTOTAL", money(totals.subtotal)],
+      [`IMPUESTOS (${quote.tax_percent}%)`, money(totals.tax_amount)],
+    ];
+    if (Number(quote.discount_percent) > 0) {
+      totalsData.push([`DESCUENTO (${quote.discount_percent}%)`, `- ${money(totals.discount_amount)}`]);
+    }
+    totalsData.push(["TOTAL A PAGAR", money(totals.total)]);
+
+    doc.autoTable({
+      startY: finalY,
+      body: totalsData,
+      theme: "plain",
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 40, fontStyle: 'bold' },
+        1: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
+      },
+      margin: { left: 130 }
+    });
+
+    // Observaciones
+    if (quote.notes) {
+      doc.setFontSize(10);
+      doc.text("OBSERVACIONES:", 14, finalY + 5);
+      doc.setFontSize(9);
+      doc.text(quote.notes, 14, finalY + 11);
+    }
+
+    doc.save(`Cotizacion_${quote.quote_number}_${quote.client_name.replace(/\s/g, '_')}.pdf`);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h2 className="font-semibold text-slate-900">Cotizaciones ({quotes.length})</h2>
+        <Btn onClick={() => setForm(emptyQuote())}>
+          <Plus size={15} /> Nueva cotización
+        </Btn>
+      </div>
+
+      {quotes.length === 0 ? (
+        <p className="text-sm text-slate-400">Aún no has creado ninguna cotización.</p>
+      ) : (
+        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500 text-xs">
+              <tr>
+                <th className="text-left px-4 py-2 font-medium">N°</th>
+                <th className="text-left px-4 py-2 font-medium">Fecha</th>
+                <th className="text-left px-4 py-2 font-medium">Cliente</th>
+                <th className="text-left px-4 py-2 font-medium">Ciudad</th>
+                <th className="text-right px-4 py-2 font-medium">Total</th>
+                <th className="px-4 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {quotes.map((q) => {
+                const totals = computeTotals(q);
+                return (
+                  <tr key={q.id} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-mono text-xs">#{q.quote_number}</td>
+                    <td className="px-4 py-2 font-mono text-xs">{fmtDate(q.date)}</td>
+                    <td className="px-4 py-2 font-medium">{q.client_name}</td>
+                    <td className="px-4 py-2 text-slate-500">{q.city || "—"}</td>
+                    <td className="px-4 py-2 text-right font-semibold">{money(totals.total)}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex gap-1 justify-end">
+                        <button onClick={() => downloadPDF(q)} className="text-slate-400 hover:text-cyan-600 p-1" title="Descargar PDF">
+                          <Download size={14} />
+                        </button>
+                        <button onClick={() => setForm(q)} className="text-slate-400 hover:text-slate-600 p-1"><Pencil size={14} /></button>
+                        <button onClick={() => remove(q.id)} className="text-slate-400 hover:text-rose-500 p-1"><Trash2 size={14} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {form && (
+        <Modal title={form.id ? `Editar Cotización #${form.quote_number}` : `Nueva Cotización #${form.quote_number}`} onClose={() => setForm(null)} wide>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <Field label="N° Cotización">
+              <input type="number" className={inputCls} value={form.quote_number} onChange={(e) => setForm({ ...form, quote_number: e.target.value })} />
+            </Field>
+            <Field label="Fecha">
+              <input type="date" className={inputCls} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cliente *"><input className={inputCls} value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} /></Field>
+            <Field label="NIT"><input className={inputCls} value={form.client_nit} onChange={(e) => setForm({ ...form, client_nit: e.target.value })} /></Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Contacto"><input className={inputCls} value={form.client_contact} onChange={(e) => setForm({ ...form, client_contact: e.target.value })} /></Field>
+            <Field label="Teléfono"><input className={inputCls} value={form.client_phone} onChange={(e) => setForm({ ...form, client_phone: e.target.value })} /></Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Dirección"><input className={inputCls} value={form.client_address} onChange={(e) => setForm({ ...form, client_address: e.target.value })} /></Field>
+            <Field label="Email"><input className={inputCls} value={form.client_email} onChange={(e) => setForm({ ...form, client_email: e.target.value })} /></Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Ciudad"><input className={inputCls} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></Field>
+            <Field label="Forma de pago"><input className={inputCls} value={form.payment_terms} onChange={(e) => setForm({ ...form, payment_terms: e.target.value })} /></Field>
+          </div>
+
+          <div className="mb-2 flex items-center justify-between mt-4">
+            <span className="text-xs font-medium text-slate-500">Ítems de la cotización</span>
+            <Btn size="sm" tone="ghost" onClick={addItem}><Plus size={13} /> Agregar ítem</Btn>
+          </div>
+
+          <div className="space-y-2 mb-4">
+            {form.items.map((it, idx) => (
+              <div key={idx} className="flex gap-2 items-start bg-slate-50 p-2 rounded">
+                <span className="text-xs text-slate-400 pt-2 w-6">{idx + 1}</span>
+                <input className={inputCls + " flex-1"} placeholder="Descripción" value={it.description} onChange={(e) => updateItem(idx, { description: e.target.value })} />
+                <input type="number" min="0" className={inputCls + " w-16"} placeholder="Cant." value={it.qty} onChange={(e) => updateItem(idx, { qty: e.target.value })} />
+                <input className={inputCls + " w-16"} placeholder="Und" value={it.unit} onChange={(e) => updateItem(idx, { unit: e.target.value })} />
+                <input type="number" min="0" className={inputCls + " w-24"} placeholder="V. Unit" value={it.unit_price} onChange={(e) => updateItem(idx, { unit_price: e.target.value })} />
+                <button onClick={() => removeItem(idx)} className="text-slate-400 hover:text-rose-500 pt-2 shrink-0"><X size={16} /></button>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Impuestos (%)"><input type="number" className={inputCls} value={form.tax_percent} onChange={(e) => setForm({ ...form, tax_percent: e.target.value })} /></Field>
+            <Field label="Descuento (%)"><input type="number" className={inputCls} value={form.discount_percent} onChange={(e) => setForm({ ...form, discount_percent: e.target.value })} /></Field>
+          </div>
+
+          <Field label="Observaciones"><textarea rows={3} className={inputCls} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+
+          <div className="border-t border-slate-100 pt-3 mt-2 space-y-1">
+            <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span>{money(computeTotals(form).subtotal)}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-slate-500">Impuestos ({form.tax_percent}%)</span><span>{money(computeTotals(form).tax_amount)}</span></div>
+            {Number(form.discount_percent) > 0 && (
+              <div className="flex justify-between text-sm"><span className="text-slate-500">Descuento ({form.discount_percent}%)</span><span className="text-rose-600">- {money(computeTotals(form).discount_amount)}</span></div>
+            )}
+            <div className="flex justify-between text-base font-semibold border-t border-slate-100 pt-2"><span>Total a pagar</span><span>{money(computeTotals(form).total)}</span></div>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Btn tone="ghost" onClick={() => setForm(null)}>Cancelar</Btn>
+            <Btn onClick={save}>Guardar</Btn>
           </div>
         </Modal>
       )}
