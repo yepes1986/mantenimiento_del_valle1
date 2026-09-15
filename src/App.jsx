@@ -1141,40 +1141,83 @@ function QuotesTab({ quotes, setQuotes, installations }) {
     setQuotes(quotes.filter(q => q.id !== id));
   }
 
-  const downloadPDF = (quote) => {
-    
+  const downloadPDF = async (quote) => {
     const doc = new jsPDF();
     const totals = computeTotals(quote);
     
-    // Encabezado
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 210, 25, 'F');
+    // ---- Cargar el logo desde Supabase ----
+    const logoUrl = "https://rdwxhhxfcqcnekstyjws.supabase.co/storage/v1/object/public/fotos-mantenimiento/WhatsApp%20Image%202026-07-28%20at%207.13.06%20PM.jpeg";
+    let logoBase64 = null;
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = logoUrl;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      logoBase64 = canvas.toDataURL('image/jpeg', 0.9);
+    } catch (err) {
+      console.error('No se pudo cargar el logo:', err);
+    }
+    
+    // ---- Encabezado (color azul petróleo oscuro) ----
+    doc.setFillColor(12, 74, 110); // #0C4A6E - cyan-900
+    doc.rect(0, 0, 210, 30, 'F');
+    
+    // Barra de acento cyan en la parte inferior del encabezado
+    doc.setFillColor(6, 182, 212); // #06B6D4 - cyan-500
+    doc.rect(0, 30, 210, 1.5, 'F');
+    
+    // ---- Logo (si se cargó correctamente) ----
+    if (logoBase64) {
+      try {
+        // El logo se dibuja con fondo blanco redondeado para que se vea bien
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(14, 5, 22, 22, 2, 2, 'F');
+        doc.addImage(logoBase64, 'JPEG', 15, 6, 20, 20);
+      } catch (e) {
+        console.error('Error al insertar logo:', e);
+      }
+    }
+    
+    // ---- Nombre de la empresa y eslogan ----
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.text("MANTENIMIENTO DEL VALLE", 14, 12);
+    doc.setFont(undefined, 'bold');
+    doc.text("MANTENIMIENTO DEL VALLE", logoBase64 ? 40 : 14, 14);
     doc.setFontSize(9);
-    doc.text("Servicio de Electricidad y Refrigeración", 14, 18);
+    doc.setFont(undefined, 'normal');
+    doc.text("Servicio de Electricidad y Refrigeración", logoBase64 ? 40 : 14, 20);
+    
     doc.setTextColor(0, 0, 0);
     
-    // Título
+    // ---- Título de la cotización ----
     doc.setFontSize(14);
-    doc.text("COTIZACIÓN", 160, 35);
+    doc.setFont(undefined, 'bold');
+    doc.text("COTIZACIÓN", 160, 45);
     doc.setFontSize(10);
-    doc.text(`N° ${quote.quote_number}`, 160, 41);
-    doc.text(`Fecha: ${fmtDate(quote.date)}`, 160, 47);
+    doc.setFont(undefined, 'normal');
+    doc.text(`N° ${quote.quote_number}`, 160, 51);
+    doc.text(`Fecha: ${fmtDate(quote.date)}`, 160, 57);
     
-    // Datos del cliente
+    // ---- Datos del cliente ----
     doc.setFontSize(10);
-    doc.text(`Cliente: ${quote.client_name || ""}`, 14, 40);
-    if (quote.client_nit) doc.text(`NIT: ${quote.client_nit}`, 14, 46);
-    if (quote.client_contact) doc.text(`Contacto: ${quote.client_contact}`, 14, 52);
-    if (quote.client_phone) doc.text(`Tel: ${quote.client_phone}`, 14, 58);
-    if (quote.client_address) doc.text(`Dirección: ${quote.client_address}`, 14, 64);
-    if (quote.client_email) doc.text(`Email: ${quote.client_email}`, 14, 70);
-    if (quote.city) doc.text(`Ciudad: ${quote.city}`, 14, 76);
-    if (quote.payment_terms) doc.text(`Forma de pago: ${quote.payment_terms}`, 14, 82);
-
-    // Tabla de items
+    doc.text(`Cliente: ${quote.client_name || ""}`, 14, 45);
+    if (quote.client_nit) doc.text(`NIT: ${quote.client_nit}`, 14, 51);
+    if (quote.client_contact) doc.text(`Contacto: ${quote.client_contact}`, 14, 57);
+    if (quote.client_phone) doc.text(`Tel: ${quote.client_phone}`, 14, 63);
+    if (quote.client_address) doc.text(`Dirección: ${quote.client_address}`, 14, 69);
+    if (quote.client_email) doc.text(`Email: ${quote.client_email}`, 14, 75);
+    if (quote.city) doc.text(`Ciudad: ${quote.city}`, 14, 81);
+    if (quote.payment_terms) doc.text(`Forma de pago: ${quote.payment_terms}`, 14, 87);
+    
+    // ---- Tabla de ítems ----
     const rows = (quote.items || []).filter(it => it.description).map((it, i) => [
       i + 1,
       it.description,
@@ -1183,13 +1226,18 @@ function QuotesTab({ quotes, setQuotes, installations }) {
       money(it.unit_price),
       money((Number(it.qty) || 0) * (Number(it.unit_price) || 0))
     ]);
-
+    
     autoTable(doc, {
-      startY: 90,
+      startY: 95,
       head: [["#", "Descripción", "Cant.", "Unidad", "V. Unitario", "V. Total"]],
       body: rows,
       theme: "striped",
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+      headStyles: { 
+        fillColor: [12, 74, 110],  // #0C4A6E - cyan-900 (igual al encabezado)
+        textColor: 255, 
+        fontStyle: 'bold' 
+      },
+      alternateRowStyles: { fillColor: [240, 249, 255] }, // #F0F9FF - cyan-50 (rayas suaves)
       styles: { fontSize: 9, cellPadding: 2 },
       columnStyles: {
         0: { cellWidth: 10 },
@@ -1199,8 +1247,8 @@ function QuotesTab({ quotes, setQuotes, installations }) {
         5: { cellWidth: 30, halign: 'right' },
       }
     });
-
-    // Totales
+    
+    // ---- Totales ----
     let finalY = doc.lastAutoTable.finalY + 10;
     const totalsData = [
       ["SUBTOTAL", money(totals.subtotal)],
@@ -1210,7 +1258,7 @@ function QuotesTab({ quotes, setQuotes, installations }) {
       totalsData.push([`DESCUENTO (${quote.discount_percent}%)`, `- ${money(totals.discount_amount)}`]);
     }
     totalsData.push(["TOTAL A PAGAR", money(totals.total)]);
-
+    
     autoTable(doc, {
       startY: finalY,
       body: totalsData,
@@ -1220,17 +1268,35 @@ function QuotesTab({ quotes, setQuotes, installations }) {
         0: { cellWidth: 40, fontStyle: 'bold' },
         1: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
       },
-      margin: { left: 130 }
+      margin: { left: 130 },
+      didParseCell: (data) => {
+        // La última fila (TOTAL A PAGAR) va con fondo cyan claro
+        if (data.row.index === totalsData.length - 1) {
+          data.cell.styles.fillColor = [207, 250, 254]; // #CFFAFE - cyan-100
+          data.cell.styles.textColor = [12, 74, 110]; // #0C4A6E - cyan-900
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
     });
-
-    // Observaciones
+    
+    // ---- Observaciones ----
     if (quote.notes) {
       doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
       doc.text("OBSERVACIONES:", 14, finalY + 5);
+      doc.setFont(undefined, 'normal');
       doc.setFontSize(9);
       doc.text(quote.notes, 14, finalY + 11);
     }
-
+    
+    // ---- Pie de página ----
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFillColor(12, 74, 110);
+    doc.rect(0, pageHeight - 10, 210, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text("Gracias por su preferencia", 105, pageHeight - 4, { align: 'center' });
+    
     doc.save(`Cotizacion_${quote.quote_number}_${quote.client_name.replace(/\s/g, '_')}.pdf`);
   };
 
