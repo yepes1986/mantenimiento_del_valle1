@@ -8,7 +8,7 @@ import {
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 // ---------------------------------------------------------------------------
 // Utilidades
@@ -1184,7 +1184,7 @@ function QuotesTab({ quotes, setQuotes, installations }) {
       money((Number(it.qty) || 0) * (Number(it.unit_price) || 0))
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 90,
       head: [["#", "Descripción", "Cant.", "Unidad", "V. Unitario", "V. Total"]],
       body: rows,
@@ -1211,7 +1211,7 @@ function QuotesTab({ quotes, setQuotes, installations }) {
     }
     totalsData.push(["TOTAL A PAGAR", money(totals.total)]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: finalY,
       body: totalsData,
       theme: "plain",
