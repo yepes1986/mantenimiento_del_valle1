@@ -1145,25 +1145,22 @@ function QuotesTab({ quotes, setQuotes, installations }) {
     const doc = new jsPDF();
     const totals = computeTotals(quote);
     
-    // ---- Cargar el logo desde Supabase ----
+    // ---- Cargar el logo desde Supabase (método fetch, más confiable)----
     const logoUrl = "https://rdwxhhxfcqcnekstyjws.supabase.co/storage/v1/object/public/fotos-mantenimiento/WhatsApp%20Image%202026-07-28%20at%207.13.06%20PM.jpeg";
     let logoBase64 = null;
     try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = logoUrl;
+      const response = await fetch(logoUrl);
+      if (!response.ok) throw new Error('Fetch falló: ' + response.status);
+      const blob = await response.blob();
+      logoBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      logoBase64 = canvas.toDataURL('image/jpeg', 0.9);
+      console.log('✅ Logo cargado correctamente');
     } catch (err) {
-      console.error('No se pudo cargar el logo:', err);
+      console.error('❌ No se pudo cargar el logo:', err);
     }
     
     // ---- Encabezado (color azul petróleo oscuro) ----
