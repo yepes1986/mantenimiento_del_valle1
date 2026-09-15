@@ -110,9 +110,9 @@ function Badge({ children, tone = "slate" }) {
 
 function Modal({ title, onClose, children, wide }) {
   return (
-    <div className="fixed inset-0 bg-slate-900/50 flex items-start sm:items-center justify-center z-50 p-3 overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-900/50 flex items-start justify-center z-50 p-3 overflow-y-auto">
       <div className={`bg-white rounded-xl shadow-xl w-full ${wide ? "max-w-2xl" : "max-w-md"} my-6`}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-xl z-10">
           <h3 className="font-semibold text-slate-900">{title}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
         </div>
