@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Wind } from "lucide-react";
+import { Wind, Eye, EyeOff } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 export default function Auth() {
@@ -9,6 +9,7 @@ export default function Auth() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
@@ -54,16 +55,26 @@ export default function Auth() {
             />
           </label>
 
-          <label className="block mb-4">
+                    <label className="block mb-4">
             <span className="block text-xs font-medium text-slate-500 mb-1">Contraseña</span>
-            <input
-              type="password"
-              required
-              minLength={6}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={6}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
+                title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </label>
 
           {error && <p className="text-sm text-rose-600 mb-3">{error}</p>}
